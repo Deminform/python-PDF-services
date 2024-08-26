@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "python-pdf-services"
+version = "0.1.0"
+description = ""
+authors = ["Deminform <deminform@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+colorama = "^0.4.6"
+pikepdf = "^9.2.0"
+pyaes = "^1.6.1"
+pymupdf = "^1.24.9"
+fitz = "^0.0.1.dev2"
+prettytable = "^3.11.0"
+pypdf2 = "^3.0.1"
+pdfminer-six = "^20240706"
+pdfrw = "^0.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
