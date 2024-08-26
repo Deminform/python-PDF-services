@@ -11,17 +11,17 @@ init(autoreset=True)
 
 def analyze_pdf_objects(doc):
     for page_num in range(len(doc)):
-        page = doc[page_num]
+        page = doc.load_page(page_num)  # Используем load_page для явной загрузки страницы
         print(f"\n{Fore.CYAN}Страница {page_num + 1}:")
         print(f"{Fore.CYAN}Объекты на странице:")
         text = page.get_text("dict")
-        for block in text["blocks"]:
+        for block in text.get("blocks", []):
             print(f"{Fore.YELLOW}Текстовый блок: {block['bbox']}")
-            if "lines" in block:
-                for line in block["lines"]:
-                    print(f"  Линия: {line['bbox']}, Текст: {line['spans'][0]['text']}")
-            else:
-                print(f"  В блоке нет текстовых линий")
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    print(f"  Линия: {line['bbox']}, Текст: {span['text']}")
+
+
 
 
 def analyze_pdf_images(doc):
@@ -29,14 +29,22 @@ def analyze_pdf_images(doc):
         page = doc[page_num]
         print(f"\n{Fore.CYAN}Страница {page_num + 1}:")
         images = page.get_images(full=True)
+        if not images:
+            print(f"{Fore.YELLOW}На странице нет изображений.")
         for img in images:
             xref = img[0]
             base_image = doc.extract_image(xref)
-            image_bytes = base_image["image"]
-            image_hash = hashlib.md5(image_bytes).hexdigest()
+            image_hash = hashlib.md5(base_image.get("image", b"")).hexdigest()
+            # Отображаем только важные метаданные
             print(f"{Fore.YELLOW}Изображение {xref}:")
-            print(f"MD5 хэш изображения: {image_hash}")
-            print(f"Метаданные изображения: {base_image}")
+            print(f"  MD5 хэш изображения: {image_hash}")
+            print(f"  Расширение: {base_image.get('ext')}")
+            print(f"  Размеры: {base_image.get('width')}x{base_image.get('height')}")
+            print(f"  Цветовое пространство: {base_image.get('cs-name')}")
+            print(f"  Биты на компонент: {base_image.get('bpc')}")
+            print(f"  Разрешение: {base_image.get('xres')}x{base_image.get('yres')} DPI")
+
+
 
 def analyze_pdf_fonts(doc):
     print(f"\n{Fore.CYAN}Проверка целостности шрифтов:")
@@ -58,8 +66,13 @@ def analyze_trailer_and_metadata(doc):
     print(f"\n{Fore.CYAN}Анализ трейлера и метаданных документа:")
     trailer = doc.pdf_trailer()
     print(f"{Fore.YELLOW}Трейлер: {trailer}")
+
     metadata = doc.metadata
     print(f"{Fore.YELLOW}Метаданные документа: {metadata}")
+
+    pdf_version = metadata.get("format", "Неизвестно")
+    print(f"{Fore.YELLOW}Версия PDF: {pdf_version}")
+
 
 def extract_xmp_metadata(pdf_path):
     print(f"\n{Fore.CYAN}Извлечение XMP-метаданных:")
@@ -160,18 +173,20 @@ def custom_check_xref(doc):
 def check_for_javascript(doc):
     print(f"\n{Fore.CYAN}Проверка на наличие JavaScript:")
     try:
-        if "/JavaScript" in doc.metadata.get("producer", ""):
+        js_actions = doc.get_js()
+        if js_actions:
             print(f"{Fore.RED}Обнаружен JavaScript в документе.")
         else:
             print(f"{Fore.GREEN}JavaScript отсутствует в документе.")
     except Exception as e:
         print(f"Ошибка при проверке JavaScript: {e}")
 
+
 def check_fonts_integrity(doc):
     print(f"\n{Fore.CYAN}Проверка целостности шрифтов:")
     try:
         for page_num in range(len(doc)):
-            page = doc[page_num]
+            page = doc.load_page(page_num)
             fonts = page.get_fonts(full=True)
             for font in fonts:
                 font_name = font[3]
@@ -182,17 +197,6 @@ def check_fonts_integrity(doc):
                     print(f"{Fore.YELLOW}Шрифт '{font_name}' не встроен на странице {page_num + 1}. Это может быть подозрительно.")
     except Exception as e:
         print(f"Ошибка при проверке шрифтов: {e}")
-
-# def check_pdf_version(doc):
-#     print(f"\n{Fore.CYAN}Проверка версии PDF:")
-#     try:
-#         version = doc.metadata.get("version", "Неизвестно")
-#         if version:
-#             print(f"{Fore.GREEN}Версия PDF: {version}")
-#         else:
-#             print(f"{Fore.RED}Не удалось определить версию PDF.")
-#     except Exception as e:
-#         print(f"Ошибка при проверке версии PDF: {e}")
 
 
 def scan_document_for_hidden_changes(pdf_path):
